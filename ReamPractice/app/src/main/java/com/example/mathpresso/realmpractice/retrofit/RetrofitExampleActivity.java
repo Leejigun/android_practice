@@ -13,10 +13,10 @@ import java.util.Locale;
 import io.realm.Realm;
 import io.realm.RealmResults;
 import retrofit2.Retrofit;
+import rx.Observable;
 import rx.Subscriber;
 import rx.Subscription;
 import rx.android.schedulers.AndroidSchedulers;
-import rx.functions.Action1;
 import rx.functions.Func1;
 import rx.schedulers.Schedulers;
 
@@ -61,41 +61,54 @@ public class RetrofitExampleActivity extends Activity {
                     public Boolean call(RealmResults<Person> persons) {
                         return persons.isLoaded();
                     }
-                }).subscribe(new Action1<RealmResults<Person>>() {
+                }).flatMap(new Func1<RealmResults<Person>, Observable<Person>>() {
                     @Override
-                    public void call(RealmResults<Person> persons) {
-                        for (Person person : persons) {
-                            githubApi.user(person.getGithubUserName())
-                                    .map(new Func1<GithubUser, UserViewModel>() {
-                                        @Override
-                                        public UserViewModel call(GithubUser githubUser) {
-                                            return new UserViewModel(githubUser.name, githubUser.public_repos, githubUser.public_gists);
-                                        }
-                                    })
-                                    .subscribeOn(Schedulers.io())
-                                    .observeOn(AndroidSchedulers.mainThread())
-                                    .subscribe(new Subscriber<UserViewModel>() {
-                                        @Override
-                                        public void onCompleted() {
+                    public Observable<Person> call(RealmResults<Person> persons) {
+                        return Observable.from(persons);
+                    }
+                }).subscribe(new Subscriber<Person>() {
+                    @Override
+                    public void onCompleted() {
 
-                                        }
+                    }
 
-                                        @Override
-                                        public void onError(Throwable e) {
-                                            e.printStackTrace();
-                                        }
+                    @Override
+                    public void onError(Throwable e) {
+                        e.printStackTrace();
+                    }
 
-                                        @Override
-                                        public void onNext(UserViewModel user) {
-                                            TextView userView = new TextView(RetrofitExampleActivity.this);
-                                            userView.setText(String.format(Locale.US, "%s: %d/%d", user.getUsername(), user.getPublicRepos(), user.getPublicGists()));
-                                            container.addView(userView);
-                                        }
-                                    });
+                    @Override
+                    public void onNext(Person person) {
+                        githubApi.user(person.getGithubUserName())
+                                .map(new Func1<GithubUser, UserViewModel>() {
+                                    @Override
+                                    public UserViewModel call(GithubUser githubUser) {
+                                        return new UserViewModel(githubUser.name, githubUser.public_repos, githubUser.public_gists);
+                                    }
+                                })
+                                .subscribeOn(Schedulers.io())
+                                .observeOn(AndroidSchedulers.mainThread())
+                                .subscribe(new Subscriber<UserViewModel>() {
+                                    @Override
+                                    public void onCompleted() {
 
-                        }
+                                    }
+
+                                    @Override
+                                    public void onError(Throwable e) {
+                                        e.printStackTrace();
+                                    }
+
+                                    @Override
+                                    public void onNext(UserViewModel user) {
+                                        TextView userView = new TextView(RetrofitExampleActivity.this);
+                                        userView.setText(String.format(Locale.US, "%s: %d/%d", user.getUsername(), user.getPublicRepos(), user.getPublicGists()));
+                                        container.addView(userView);
+                                    }
+                                });
                     }
                 });
+    }
 //                .flatMap(new Func1<RealmResults<Person>, Observable<Person>>() {
 //                    @Override
 //                    public Observable<Person> call(RealmResults<Person> persons) {
@@ -131,7 +144,8 @@ public class RetrofitExampleActivity extends Activity {
 //                        throwable.printStackTrace();
 //                    }
 //                });
-    }
+
+
 
     @Override
     protected void onPause() {
